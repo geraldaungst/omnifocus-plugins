@@ -1,0 +1,80 @@
+/*{
+	"type": "action",
+	"targets": ["omnifocus"],
+	"author": "Otto Automator",
+	"identifier": "com.omni-automation.of.assign-tags-ipados-ios",
+	"version": "1.5",
+	"description": "This action will display a list of all tags (sorted), any or all of which may selected to be assigned to the selected tasks.",
+	"label": "Assign Tags",
+	"shortLabel": "Assign Tags"
+}*/
+(() => {
+	var action = new PlugIn.Action(function(selection, sender){
+		// action code
+		// selection options: tasks, projects, folders, tags, allObjects
+
+		var allTags = flattenedTags
+		if (allTags.length > 1){
+			allTags.sort((a, b) => {
+			  var x = a.name.toLowerCase();
+			  var y = b.name.toLowerCase();
+			  if (x < y) {return -1;}
+			  if (x > y) {return 1;}
+			  return 0;
+			})
+		}
+		var menuItems = allTags.map(tag => {return tag.name})
+		var menuIndexes = new Array()
+		menuItems.forEach((item,index) => {menuIndexes.push(index)})
+		var menuLabel = "Assign Tags"
+
+		var multiOptionMenu = new Form.Field.MultipleOptions(
+			"menuKey",
+			menuLabel,
+			menuIndexes,
+			menuItems,
+			[]
+		)
+
+		var inputForm = new Form()
+		inputForm.addField(multiOptionMenu)
+
+		var formPrompt = "Select tags for selected tasks:"
+		var buttonTitle = "Continue"
+		var formPromise = inputForm.show(formPrompt,buttonTitle)
+
+		inputForm.validate = function(formObject){
+			var indexes = formObject.values["menuKey"]
+			return (indexes.length > 0)?true:false
+		}
+
+		formPromise.then(function(formObject){
+			var indexes = formObject.values["menuKey"]
+			var tags = new Array()
+			indexes.forEach(index => {
+				var tag = allTags[index]
+				console.log(tag)
+				tags.push(tag)
+			})
+			selection.tasks.forEach(function(task){
+				task.addTags(tags) 
+			})
+		})
+
+		formPromise.catch(function(err){
+			console.error("form cancelled", err.message)
+		})		
+	});
+
+	action.validate = function(selection, sender){
+		// validation code
+		// selection options: tasks, projects, folders, tags, allObjects
+		return (
+			Device.current.iOS && 
+			selection.tasks.length > 0 && 
+			tags.length > 0
+		)
+	};
+	
+	return action;
+})();
