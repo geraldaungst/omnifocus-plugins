@@ -1,0 +1,34 @@
+/*{
+	"type": "action",
+	"targets": ["omnifocus"],
+	"author": "Otto Automator",
+	"identifier": "com.omni-automation.call-note-url",
+	"version": "1.5",
+	"description": "This action will open the URL string that is the value of the note of the selected action.",
+	"label": "Open Note URL",
+	"shortLabel": "Open Note URL"
+}*/
+(() => {
+	var action = new PlugIn.Action(function(selection, sender){
+		
+		var note = (selection.projects.length === 1 ? selection.projects[0].task.note : selection.tasks[0].note);
+		
+		if (note && note.includes("://")) {
+			var urlStr = note.match(/[^<\s][^\s]+\/\/[^\s>]+/)[0]
+			var url = URL.fromString(urlStr)
+			if(url){
+				url.open()
+			} else {
+				console.error("ERROR: \"" + urlStr + "\" is not a valid URL.")
+			}
+		}
+		
+	});
+
+	action.validate = function(selection, sender){
+		// selection options: tasks, projects, folders, tags
+		return (selection.projects.length === 1 || selection.tasks.length === 1)
+	};
+	
+	return action;
+})();

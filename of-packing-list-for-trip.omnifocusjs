@@ -1,0 +1,106 @@
+/*{
+	"type": "action",
+	"targets": ["omnifocus"],
+	"author": "Otto Automator",
+	"identifier": "com.omni-automation.packing-list-for-trip",
+	"version": "2.0",
+	"description": "Creates a project of single-actions used as a packing list.",
+	"label": "Packing List for Trip",
+	"paletteLabel": "Packing List"
+}*/
+
+(() => {
+	var action = new PlugIn.Action(function(selection, sender) {
+
+		var inputForm = new Form()
+		var dateFormat = Formatter.Date.Style.Short
+		var dateFormatter = Formatter.Date.withStyle(dateFormat, dateFormat)
+
+		var taskNameField = new Form.Field.String(
+			"tripTitle",
+			"Title",
+			"My Trip"
+		)
+		var departureDateField = new Form.Field.Date(
+			"departureDate",
+			"Leave",
+			null,
+			dateFormatter
+		)
+		var returnDateField = new Form.Field.Date(
+			"returnDate",
+			"Return",
+			null,
+			dateFormatter
+		)
+
+		inputForm.addField(taskNameField)
+		inputForm.addField(departureDateField)
+		inputForm.addField(returnDateField)
+
+		var formPromise = inputForm.show("Enter the trip title and travel dates:","Continue")
+
+		inputForm.validate = function(formObject){
+			currentDateTime = new Date()
+			departureDateObject = formObject.values["departureDate"]
+			departureDateStatus = (departureDateObject && departureDateObject > currentDateTime) ? true:false
+			returnDateObject = formObject.values["returnDate"]
+			returnDateStatus = (returnDateObject && returnDateObject > departureDateObject) ? true:false
+			textValue = formObject.values["tripTitle"]
+			textStatus = (textValue && textValue.length > 0) ? true:false
+			validation = (textStatus && departureDateStatus && returnDateStatus) ? true:false
+			return validation
+		}
+
+		formPromise.then(function(formObject){
+			try {
+				var tripTitle = formObject.values['tripTitle']
+				var StartDate = formObject.values['departureDate']
+				var EndDate = formObject.values['returnDate']
+				var tripDuration = parseInt((EndDate - StartDate)/86400000)
+				var projectName = "Packing List for " + tripTitle
+				var project = new Project(projectName)
+				project.status = Project.Status.Active
+				project.containsSingletonActions = true
+				var packingItems = ["Metoprolol","Toothbrush","Toothpaste","Floss","Razor","Deodorant","Underwear","Socks","Shirts","Pants","Sleep shorts","Sleep shirt","Belt","Phone charger","Laptop","Laptop charger"]
+				var packingItems1PerDay = ["Underwear","Socks","Shirts"]
+				var packingItems1Per2Day = ["Pants"]
+				var packingItems1Per3Day = ["Sleep shorts","Sleep shirt"]
+				packingItems.forEach(packingItem => {
+					var amount = (packingItems1PerDay.includes(packingItem)) ? tripDuration : 1
+					if (packingItems1PerDay.includes(packingItem)){
+						amount = tripDuration + 1
+					} else if (packingItems1Per2Day.includes(packingItem)){
+						amount = tripDuration / 2
+						amount = (amount < 1) ? 1 : Math.ceil(amount)
+					} else if (packingItems1Per3Day.includes(packingItem)){
+						amount = tripDuration / 3
+						amount = (amount < 1) ? 1 : Math.ceil(amount)
+					} else {
+						amount = 1
+					}
+					var suffix = (amount > 1) ? ` (${amount})` : ""
+					var task = new Task(packingItem + suffix, project)
+					task.dueDate = StartDate
+					task.note = ""
+				})
+				var projID = project.id.primaryKey
+				URL.fromString("omnifocus:///task/" + projID).open()
+			}
+			catch(err){
+				console.error(err)
+			}
+		})
+
+		formPromise.catch(function(err){
+			console.log("form cancelled", err.message)
+		})
+	});
+
+	action.validate = function(selection, sender) {
+		// validation code
+		return true
+	};
+
+	return action;
+})();

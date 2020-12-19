@@ -1,0 +1,87 @@
+/*{
+	"type": "action",
+	"targets": ["omnifocus"],
+	"author": "Otto Automator",
+	"identifier": "com.omni-automation.of.push-out-all-deferred-projects",
+	"version": "1.2",
+	"description": "This action will push out all deferred projects the entered number of days.",
+	"label": "Push Out All Deferred Projects",
+	"shortLabel": "Push Out All Deferred Projects"
+}*/
+(() => {
+	var action = new PlugIn.Action(function(selection, sender){
+		// action code
+		// selection options: tasks, projects, folders, tags, allObjects
+		
+		var maxValue = 180
+		var minValue = 1
+
+		var textInputField = new Form.Field.String(
+			"textInput",
+			String("(" + minValue + "-" + maxValue + ")"),
+			null
+		)
+		
+		var checkboxSwitch = new Form.Field.Checkbox(
+			"shouldPushDueDates",
+			"Push existing due dates",
+			true
+		)
+		
+		var inputForm = new Form()
+		inputForm.addField(textInputField)
+		inputForm.addField(checkboxSwitch)
+		var formPrompt = "Enter number of days:"
+		var buttonTitle = "Continue"
+		formPromise = inputForm.show(formPrompt,buttonTitle)
+
+		inputForm.validate = function(formObject){
+			inputText = formObject.values['textInput']
+			if (!inputText) {return false}
+			var isnum = /^[0-9]+$/i.test(inputText)
+			if (isnum){
+				var intValue = parseInt(inputText)
+				return ((intValue <= maxValue && intValue >= minValue) ? true:false)
+			}
+			return false
+		}
+
+		formPromise.then(function(formObject){
+			var textValue = formObject.values['textInput']
+			var intValue = parseInt(textValue)
+			console.log("intValue: ",intValue)
+			var shouldPushDueDates = formObject.values['shouldPushDueDates']
+			
+			var deferredProjects = flattenedProjects.filter(p => {
+				return p.deferDate != null
+			})
+			var cal = Calendar.current
+			var dc = new DateComponents()
+			dc.day = intValue
+			deferredProjects.forEach(project => {
+				if(shouldPushDueDates){
+					var currentDueDate = project.dueDate
+					if(currentDueDate){
+						var newDueDate = cal.dateByAddingDateComponents(currentDueDate,dc)
+						project.dueDate = newDueDate
+					}
+				}
+				var currentDeferDate = project.deferDate
+				var newDeferDate = cal.dateByAddingDateComponents(currentDeferDate,dc)
+				project.deferDate = newDeferDate
+			})
+		})
+
+		formPromise.catch(function(err){
+			console.error("form cancelled", err.message)
+		})
+	});
+
+	action.validate = function(selection, sender){
+		// validation code
+		// selection options: tasks, projects, folders, tags, allObjects
+		return (flattenedProjects.filter(p => {return p.deferDate != null}).length > 0)
+	};
+	
+	return action;
+})();

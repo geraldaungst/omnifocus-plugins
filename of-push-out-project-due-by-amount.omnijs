@@ -1,0 +1,104 @@
+/*{
+	"type": "action",
+	"targets": ["omnifocus"],
+	"author": "Otto Automator",
+	"identifier": "com.omni-automation.of.push-project-due-dates-by-amount",
+	"version": "1.5",
+	"description": "Will add the indicated number of days to the due date of each selected project. If project has no due date, target date will be based upon current date.",
+	"label": "Push Out Project Due Dates",
+	"shortLabel": "Push Due Dates"
+}*/
+(() => {
+	var action = new PlugIn.Action(function(selection, sender){
+		// action code
+		// selection options: tasks, projects, folders, tags
+
+		var dayCount = 90
+		var dayIndexes = new Array()
+		var dayIndexStrings = new Array()
+		for (var i = 0; i < dayCount; i++){
+			dayIndexes.push(i)
+			dayIndexStrings.push(String(i + 1))
+		}
+
+		var inputForm = new Form()
+
+		var dayMenu = new Form.Field.Option(
+			"dayMenu",
+			null,
+			dayIndexes,
+			dayIndexStrings,
+			0
+		)
+		
+		var checkSwitchField1 = new Form.Field.Checkbox(
+			"shouldIncludeTasks",
+			"Apply to all project tasks",
+			true
+		)
+		
+		var checkSwitchField2 = new Form.Field.Checkbox(
+			"shouldIncludeDefers",
+			"Push out deferment dates",
+			true
+		)
+
+		inputForm.addField(dayMenu)
+		inputForm.addField(checkSwitchField1)
+		inputForm.addField(checkSwitchField2)
+		var formPrompt = "Number of days to add to project due dates:"
+		var buttonTitle = "OK"
+		var formPromise = inputForm.show(formPrompt, buttonTitle)
+
+		inputForm.validate = function(formObject){
+			return true
+		}
+
+		formPromise.then(function(formObject){
+			var dayMenuIndex = formObject.values["dayMenu"]
+			var dayIndexString = dayIndexStrings[dayMenuIndex]
+			var pushoutDuration = parseInt(dayIndexString)
+			var shouldIncludeTasks = formObject.values["shouldIncludeTasks"]
+			var shouldIncludeDefers = formObject.values["shouldIncludeDefers"]
+			var cal = Calendar.current
+			var dc = new DateComponents()
+			dc.day = pushoutDuration
+			selection.projects.forEach(proj => {
+				var currentDueDate = proj.task.dueDate
+				currentDueDate = (currentDueDate != null) ? currentDueDate : new Date()
+				var newDueDate = cal.dateByAddingDateComponents(currentDueDate,dc)
+				proj.task.dueDate = newDueDate
+				if(shouldIncludeDefers){
+					var currentDeferDate = proj.task.deferDate
+					if(currentDeferDate){
+						var newDeferDate = cal.dateByAddingDateComponents(currentDeferDate,dc)
+						proj.task.deferDate = newDeferDate
+					}
+				}
+				if(shouldIncludeTasks){
+					proj.task.children.forEach(item =>{
+						currentDueDate = item.dueDate
+						currentDueDate = (currentDueDate != null) ? currentDueDate : new Date()
+						var targetDate = cal.dateByAddingDateComponents(currentDueDate,dc)
+						item.dueDate = targetDate
+						if(shouldIncludeDefers){
+							var currentDeferDate = item.deferDate
+							if(currentDeferDate){
+								var newDeferDate = cal.dateByAddingDateComponents(currentDeferDate,dc)
+								item.deferDate = newDeferDate
+							}
+						}
+					})
+				}
+			})
+		})
+	});
+
+	action.validate = function(selection, sender){
+		// validation code
+		// selection options: tasks, projects, folders, tags
+		return (selection.projects.length > 0)
+	};
+	
+	return action;
+})();
